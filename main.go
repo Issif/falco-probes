@@ -4,14 +4,14 @@ import (
 	"bufio"
 	"encoding/json"
 	"html/template"
+	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
 )
-
-var filePath = "./input/list.html"
 
 type probe struct {
 	FalcoVersion  string `json:"falco_version"`
@@ -24,8 +24,27 @@ type probe struct {
 }
 
 func main() {
+	fileUrl := "https://s3.amazonaws.com/download.draios.com/stable/sysdig-probe-binaries/index.html"
+	filePath := "./input/list.html"
+
+	resp, err := http.Get(fileUrl)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(filePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	probes := make(map[string][]probe)
-	// var fVersions []string
 
 	regx := regexp.MustCompile("\"falco-probe-.*\"")
 
