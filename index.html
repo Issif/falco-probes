@@ -8,10 +8,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="./css/bootstrap.min.css" rel="stylesheet">
     <script type="text/javascript" src="./js/dataTables.bootstrap.min.js"></script>
-    <script type="text/javascript" src="./js/jquery-3.3.1.js"></script>
+    <script type="text/javascript" src="./js/jquery-3.4.1.min.js"></script>
     <script type="text/javascript" src="./js/jquery.dataTables.min.js"></script>
     <script>
-       var urlParams = new URLSearchParams(window.location.search);
+        var urlParams = new URLSearchParams(window.location.search);
         var searchString = urlParams.get('search')
         if (searchString == null) {
             searchString = "";
@@ -45,9 +45,8 @@
     </script>
     </head>
     <body>
-    <div>
+    <div id="releases">
         <img src="https://sysdig.com/wp-content/uploads/2018/10/Falco-horizontal-logo-teal_2x.png" height="55" alt="falco logo">
-        <span class="btn btn-link"><a href="?falcoversion=0.10.0">0.10.0</a></span><span class="btn btn-link"><a href="?falcoversion=0.11.0">0.11.0</a></span><span class="btn btn-link"><a href="?falcoversion=0.11.1">0.11.1</a></span><span class="btn btn-link"><a href="?falcoversion=0.12.0">0.12.0</a></span><span class="btn btn-link"><a href="?falcoversion=0.12.1">0.12.1</a></span><span class="btn btn-link"><a href="?falcoversion=0.13.0">0.13.0</a></span><span class="btn btn-link"><a href="?falcoversion=0.13.1">0.13.1</a></span><span class="btn btn-link"><a href="?falcoversion=0.14.0">0.14.0</a></span><span class="btn btn-link"><a href="?falcoversion=0.15.0">0.15.0</a></span><span class="btn btn-link"><a href="?falcoversion=0.15.1">0.15.1</a></span><span class="btn btn-link"><a href="?falcoversion=0.15.2">0.15.2</a></span><span class="btn btn-link"><a href="?falcoversion=0.15.3">0.15.3</a></span><span class="btn btn-link"><a href="?falcoversion=0.16.0">0.16.0</a></span><span class="btn btn-link"><a href="?falcoversion=0.17.0">0.17.0</a></span><span class="btn btn-link"><a href="?falcoversion=0.17.1">0.17.1</a></span>
     </div>
     <br>
     <table id="probes" class="table table-striped table-condensed">
@@ -65,4 +64,19 @@
         </thead>
     </table>
     </body>
+    <script>
+        $.getJSON('./data/index.json', function(data) {
+            for (var key in data) {
+                var spanelement = document.createElement('span');
+                spanelement.className = "btn btn-link";
+                var aelement = document.createElement('a');
+                var linkText = document.createTextNode(key);
+                aelement.appendChild(linkText);
+                aelement.title = key;
+                aelement.href = "?falcoversion="+key;
+                spanelement.appendChild(aelement);
+                document.getElementById("releases").appendChild(spanelement);
+            }
+        });
+    </script>
 </html>

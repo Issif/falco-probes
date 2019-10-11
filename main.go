@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"html/template"
 	"io"
 	"io/ioutil"
 	"log"
@@ -23,11 +22,17 @@ type probe struct {
 	Link          string `json:"link"`
 }
 
-func main() {
-	fileUrl := "https://s3.amazonaws.com/download.draios.com/stable/sysdig-probe-binaries/index.html"
-	filePath := "./input/list.html"
+type entry struct {
+	FalcoVersion string `json:"falco_version"`
+	Link         string `json:"link"`
+}
 
-	resp, err := http.Get(fileUrl)
+const baseURL = "https://thomas.labarussias.fr/falco-probes/data/"
+const fileURL = "https://s3.amazonaws.com/download.draios.com/stable/sysdig-probe-binaries/index.html"
+const filePath = "./input/list.html"
+
+func main() {
+	resp, err := http.Get(fileURL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,8 +49,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	probes := make(map[string][]probe)
-
 	regx := regexp.MustCompile("\"falco-probe-.*\"")
 
 	file, err := os.Open(filePath)
@@ -54,6 +57,7 @@ func main() {
 	}
 	defer file.Close()
 
+	probes := make(map[string][]probe)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		// match := regx.FindAllString(scanner.Text(), -1)
@@ -78,6 +82,7 @@ func main() {
 			probes[p.FalcoVersion] = append(probes[p.FalcoVersion], p)
 		}
 	}
+
 	v := make(map[string]string)
 	for i := range probes {
 		v[i] = ""
@@ -88,20 +93,10 @@ func main() {
 		}
 	}
 
-	f, err := os.Create("index.html")
-	defer f.Close()
-	if err != nil {
-		log.Fatalf("create file: %v", err)
+	entries := map[string]string{}
+	for i := range probes {
+		entries[i] = baseURL + i + ".json"
 	}
-
-	t, err := template.ParseFiles("index.gotemplate")
-	if err != nil {
-		log.Fatalf("parse : %v", err)
-	}
-
-	err = t.Execute(f, v)
-	if err != nil {
-		log.Fatalf("create file: %v", err)
-	}
-
+	e, _ := json.Marshal(entries)
+	_ = ioutil.WriteFile("./data/index.json", e, 0644)
 }
