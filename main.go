@@ -3,11 +3,9 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 )
@@ -38,27 +36,10 @@ func main() {
 	}
 	defer resp.Body.Close()
 
-	out, err := os.Create(filePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	regx := regexp.MustCompile("\"falco-probe-.*\"")
-
-	file, err := os.Open(filePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-
 	probes := make(map[string][]probe)
-	scanner := bufio.NewScanner(file)
+	// scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(resp.Body)
 	for scanner.Scan() {
 		// match := regx.FindAllString(scanner.Text(), -1)
 		match := regx.FindStringSubmatch(scanner.Text())
