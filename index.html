@@ -6,77 +6,126 @@
     <meta name="author" content="">
     <meta name="description" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="./css/bootstrap.min.css" rel="stylesheet">
-    <script type="text/javascript" src="./js/dataTables.bootstrap.min.js"></script>
-    <script type="text/javascript" src="./js/jquery-3.4.1.min.js"></script>
-    <script type="text/javascript" src="./js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.12.1/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.12.1/js/dataTables.bootstrap5.min.js"></script>
+    <style>
+        .dataTables_filter {
+            padding-right: 10px;
+        }
+        .btn {
+            padding-bottom: 15px;
+        }
+        .ebpf {
+            background-color: #1C5EF5;
+        }
+        .kmod {
+            background-color: #F78919;
+        }
+        .x86_64 {
+            background-color: #5d00f2;
+        }
+        .aarch64 {
+            background-color: #0b912f;
+        }
+    </style>
     <script>
         var urlParams = new URLSearchParams(window.location.search);
-        var searchString = urlParams.get('search')
-        if (searchString == null) {
-            searchString = "";
+        var search = urlParams.get('search')
+        if (search == null) {
+            search = "";
         };
-        if (urlParams.get('falcoversion') != null) {
-            $(document).ready(function(){
-            $.getJSON("./data/"+urlParams.get('falcoversion')+".json", function( data ) {
-                $('#probes').DataTable({
-                    "oSearch": {"sSearch": searchString },
-                    "paging": false,
+        $(document).ready(function() {
+            $.getJSON("./data/list.json", function(data) {
+                $('#drivers').DataTable({
+                    "search": {"search": search },
+                    "paging": true,
+                    "pageLength": 100,
                     "data" : data,
-                    "order": [[ 6, "desc" ]],
+                    "order": [[ 1, "desc" ]],
                     columns : [
-                        { "data" : "falco_version"},
-                        { "data" : "architecture"},
-                        { "data" : "kernel_version"},
-                        { "data" : "hash"},
+                        { "data" : "lib"},
+                        {
+                            "data": 'arch',
+                            render: function (data) {
+                                if (data === "x86_64") {
+                                    return '<span class="badge x86_64">'+data+'</span>'
+                                }
+                                if (data === "aarch64") {
+                                    return '<span class="badge aarch64">'+data+'</span>'
+                                }
+                                return data
+                            },
+                        },
+                        {
+                            "data": 'kind',
+                            render: function (data) {
+                                if (data === "ebpf") {
+                                    return '<span class="badge ebpf">'+data+'</span>'
+                                }
+                                if (data === "kmod") {
+                                    return '<span class="badge kmod">'+data+'</span>'
+                                }
+                                return data
+                            },
+                        },
+                        { "data" : "name"},
                         { "data" : "size"},
-                        { "data" : "creation_date"},
-                        { "data" : "link",  render: function ( data, type, row ) {
-                                                return '<a href="'+data+'" download="'+data+'"><span class="glyphicon glyphicon-download-alt"></span></a>';
-                                            }},
-                        { "data" : "kernel_version", render: function ( data, type, row ) {
-                                                return '<a href="./?falcoversion='+urlParams.get('falcoversion')+'&search='+data+'"><span class="glyphicon glyphicon-search"></span></a>';
-                                            }},
-                        ]
-                    });
+                        {
+                            "data": 'download',
+                            render: function (data) {
+                                return '<a href="'+data+'" download="'+data+'"><i class="bi bi-download" style="padding-left: 30px;"></i></a>'
+                            },
+                        },
+                        { "data" : "lastmodified"},
+                        { 
+                            "data" : "name",
+                            render: function (data) {
+                                return '<a href="?search='+data+'"><i class="bi bi-link"></i></a>';
+                            }
+                        },
+                    ]
                 });
             });
-        }
+        });
     </script>
     </head>
     <body>
-    <div id="releases">
+    <div>
         <img src="https://sysdig.com/wp-content/uploads/2018/10/Falco-horizontal-logo-teal_2x.png" height="55" alt="falco logo">
     </div>
-    <br>
-    <table id="probes" class="table table-striped table-condensed">
+    <table id="drivers" class="table table-striped table-condensed" style="padding-left: 10px;">
         <thead>
             <tr>
-                <th>Falco Release</th>
-                <th>Architecture</th> 
-                <th>Kernel Version</th> 
-                <th>Hash</th> 
-                <th>Size</th> 
-                <th>Creation Date</th> 
-                <th>Download Link</th> 
-                <th>Share Link</th>
+                <th>Libs</th>
+                <th>Arch</th>
+                <th>Kind</th> 
+                <th>Name</th>
+                <th>Size</th>
+                <th>Download</th>
+                <th>LastModified</th>
+                <th>Link</th>
             </tr>
         </thead>
     </table>
     </body>
-    <script>
-        $.getJSON('./data/index.json', function(data) {
+    <!-- <script>
+        $.getJSON('./data/list.json', function(data) {
             for (var key in data) {
                 var spanelement = document.createElement('span');
                 spanelement.className = "btn btn-link";
+                spanelement.style = "padding-bottom: 15px;";
                 var aelement = document.createElement('a');
                 var linkText = document.createTextNode(key);
                 aelement.appendChild(linkText);
                 aelement.title = key;
-                aelement.href = "?falcoversion="+key;
+                aelement.href = "?target="+key+"&arch="+arch;
                 spanelement.appendChild(aelement);
-                document.getElementById("releases").appendChild(spanelement);
+                document.getElementById("targets").appendChild(spanelement);
             }
         });
-    </script>
+    </script> -->
 </html>
