@@ -33,19 +33,97 @@
         }
     </style>
     <script>
-        var urlParams = new URLSearchParams(window.location.search);
-        var search = urlParams.get('search')
+        var url = new URL(window.location);
+        var lib = url.searchParams.get('lib');
+        if (lib == null) {
+            lib = "2.0.0+driver";
+            url.searchParams.set('lib', lib);
+        };
+        var target = url.searchParams.get('target')
+        if (target == null) {
+            target = "amazonlinux2";
+            url.searchParams.set('target', target);
+        };
+        var arch = url.searchParams.get('arch')
+        if (arch == null) {
+            arch = "x86_64";
+            url.searchParams.set('arch', arch);
+        };
+        var kind = url.searchParams.get('kind')
+        if (kind == null) {
+            kind = "ebpf";
+            url.searchParams.set('kind', kind);
+        };
+        var search = url.searchParams.get('search')
         if (search == null) {
             search = "";
         };
+        window.history.pushState({}, '', url);
+        $.getJSON('./data/list.json', function(data) {
+            Object.entries(data).forEach (([key, value]) => {
+                for (var item of value) {
+                    var spanelement = document.createElement('span');
+                    spanelement.className = "btn btn-link";
+                    spanelement.style = "padding-bottom: 5px;";
+                    var aelement = document.createElement('a'); 
+                    var linkText = document.createTextNode(item);
+                    aelement.appendChild(linkText);
+                    aelement.title = item;
+                    var searchPrms = new URLSearchParams(window.location.search);
+                    searchPrms.set(key, item);
+                    aelement.href = "?"+searchPrms.toString();
+                    spanelement.appendChild(aelement);
+                    document.getElementById(key).appendChild(spanelement);
+                }
+            });
+        });
+    </script>
+    </head>
+    <body>
+    <div>
+        <img src="https://sysdig.com/wp-content/uploads/2018/10/Falco-horizontal-logo-teal_2x.png" height="55" alt="falco logo">
+    </div>
+    <div id="lib" style="padding-left: 10px;">
+        Lib:
+    </div>
+    <div id="arch" style="padding-left: 10px;">
+        Arch:
+    </div>
+    <div id="kind" style="padding-left: 10px;">
+        Kind:
+    </div>
+    <div id="target" style="padding-left: 10px; padding-bottom: 15px;">
+        Target:
+    </div>
+    <table id="drivers" class="table table-striped table-condensed" style="padding-left: 10px;">
+        <thead>
+            <tr>
+                <th>Libs</th>
+                <th>Arch</th>
+                <th>Target</th>
+                <th>Kind</th> 
+                <th>Name</th>
+                <th>Size</th>
+                <th>Download</th>
+                <th>LastModified</th>
+                <th>Link</th>
+            </tr>
+        </thead>
+    </table>
+    </body>
+    <script>
         $(document).ready(function() {
-            $.getJSON("./data/list.json", function(data) {
+            $.getJSON('./data/'+lib+'/'+arch+'/'+target+'/'+kind+'.json', function(data) {
                 $('#drivers').DataTable({
                     "search": {"search": search },
                     "paging": true,
                     "pageLength": 100,
                     "data" : data,
-                    "order": [[ 1, "desc" ]],
+                    "order": [[ 2, "asc" ]],
+                    // ajax: {
+                    //     url: "./data/17f5df52a7d9ed6bb12d3b1768460def8439936d/x86_64/amazonlinux2/ebpf.json",
+                    //     // url: "./data/"+lib+"/"+arch+"/"+target+"/"+kind+".json",
+                    // },
                     columns : [
                         { "data" : "lib"},
                         {
@@ -60,6 +138,7 @@
                                 return data
                             },
                         },
+                        { "data" : "target"},
                         {
                             "data": 'kind',
                             render: function (data) {
@@ -92,40 +171,4 @@
             });
         });
     </script>
-    </head>
-    <body>
-    <div>
-        <img src="https://sysdig.com/wp-content/uploads/2018/10/Falco-horizontal-logo-teal_2x.png" height="55" alt="falco logo">
-    </div>
-    <table id="drivers" class="table table-striped table-condensed" style="padding-left: 10px;">
-        <thead>
-            <tr>
-                <th>Libs</th>
-                <th>Arch</th>
-                <th>Kind</th> 
-                <th>Name</th>
-                <th>Size</th>
-                <th>Download</th>
-                <th>LastModified</th>
-                <th>Link</th>
-            </tr>
-        </thead>
-    </table>
-    </body>
-    <!-- <script>
-        $.getJSON('./data/list.json', function(data) {
-            for (var key in data) {
-                var spanelement = document.createElement('span');
-                spanelement.className = "btn btn-link";
-                spanelement.style = "padding-bottom: 15px;";
-                var aelement = document.createElement('a');
-                var linkText = document.createTextNode(key);
-                aelement.appendChild(linkText);
-                aelement.title = key;
-                aelement.href = "?target="+key+"&arch="+arch;
-                spanelement.appendChild(aelement);
-                document.getElementById("targets").appendChild(spanelement);
-            }
-        });
-    </script> -->
 </html>
