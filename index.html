@@ -71,6 +71,7 @@
                     aelement.title = item;
                     var searchPrms = new URLSearchParams(window.location.search);
                     searchPrms.set(key, item);
+                    searchPrms.delete('search');
                     aelement.href = "?"+searchPrms.toString();
                     spanelement.appendChild(aelement);
                     document.getElementById(key).appendChild(spanelement);
