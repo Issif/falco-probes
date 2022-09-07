@@ -145,7 +145,7 @@ func fetchXML(token string) {
 			Size:         humanize.Bytes(uint64(i.SizeBytes)),
 			LastModified: i.LastModified,
 			Kind:         kind,
-			Download:     download + k,
+			Download:     download + neturl.QueryEscape(k),
 		})
 	}
 
