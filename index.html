@@ -16,6 +16,9 @@
         .dataTables_filter {
             padding-right: 10px;
         }
+        .dataTables_length {
+            padding-left: 10px;
+        }
         .btn {
             padding-bottom: 15px;
         }
@@ -30,6 +33,11 @@
         }
         .aarch64 {
             background-color: #0b912f;
+        }
+        .form-select {
+            margin-left: 16px;
+            margin-bottom: 5px;
+            display: inline;
         }
     </style>
     <script>
@@ -62,19 +70,29 @@
         $.getJSON('./data/list.json', function(data) {
             Object.entries(data).forEach (([key, value]) => {
                 for (var item of value) {
-                    var spanelement = document.createElement('span');
-                    spanelement.className = "btn btn-link";
-                    spanelement.style = "padding-bottom: 5px;";
-                    var aelement = document.createElement('a'); 
-                    var linkText = document.createTextNode(item);
-                    aelement.appendChild(linkText);
-                    aelement.title = item;
                     var searchPrms = new URLSearchParams(window.location.search);
-                    searchPrms.set(key, item);
                     searchPrms.delete('search');
-                    aelement.href = "?"+searchPrms.toString();
-                    spanelement.appendChild(aelement);
-                    document.getElementById(key).appendChild(spanelement);
+                    var selected = searchPrms.get(key);
+                    searchPrms.set(key, item);
+                    if (key === "lib") {
+                        var element = document.createElement('option');
+                        element.text = item;
+                        if (selected == item) {
+                            element.selected = item;
+                        }
+                        element.value = "?"+searchPrms.toString();
+                        document.getElementById(key).appendChild(element);
+                    } else {
+                        var element = document.createElement('a');
+                        element.className = "btn btn-outline-primary btn-sm";
+                        if (selected == item) {
+                            element.className = "btn btn-primary btn-sm";
+                        }
+                        element.style = "margin: 5px; padding-top: 8px; padding-bottom: 10px;"
+                        element.text = item;
+                        element.href = "?"+searchPrms.toString();
+                        document.getElementById(key).appendChild(element);
+                    }
                 }
             });
         });
@@ -84,8 +102,10 @@
     <div>
         <img src="https://sysdig.com/wp-content/uploads/2018/10/Falco-horizontal-logo-teal_2x.png" height="55" alt="falco logo">
     </div>
-    <div id="lib" style="padding-left: 10px;">
+    <div style="padding-left: 10px;">
         Lib:
+        <select class="form-select w-25" id="lib" onchange="if (this.value) window.location.href=this.value">
+        </select>
     </div>
     <div id="arch" style="padding-left: 10px;">
         Arch:
