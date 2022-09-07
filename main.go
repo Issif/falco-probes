@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	neturl "net/url"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -26,32 +28,68 @@ type Content struct {
 	Lib          string `json:"lib"`
 	Arch         string `json:"arch"`
 	Kind         string `json:"kind"`
+	Target       string `json:"target"`
 	Key          string `xml:"Key" json:"name"`
 	Download     string `json:"download"`
-	Size         int    `xml:"Size"`
-	SizeString   string `json:"size"`
+	SizeBytes    int    `xml:"Size" json:"sizebytes"`
+	Size         string `xml:"SizeString" json:"size"`
 	LastModified string `xml:"LastModified" json:"lastmodified"`
 }
 
-var drivers []Content
+type List struct {
+	Libs    []string `json:"lib"`
+	Archs   []string `json:"arch"`
+	Kinds   []string `json:"kind"`
+	Targets []string `json:"target"`
+}
+
+var (
+	list  List
+	files map[string][]Content
+)
+
+func init() {
+	files = make(map[string][]Content)
+	if err := os.RemoveAll("./data"); err != nil {
+		log.Fatal(err)
+	}
+}
 
 func main() {
 	fetchXML("")
-
-	j, err := json.Marshal(drivers)
+	for i, j := range files {
+		if err := os.MkdirAll(filepath.Dir(i), 0754); err != nil {
+			log.Fatal(err)
+		}
+		f, err := json.Marshal(j)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = ioutil.WriteFile(i, f, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	l := List{
+		Libs:    removeDuplicateStr(list.Libs),
+		Archs:   removeDuplicateStr(list.Archs),
+		Kinds:   removeDuplicateStr(list.Kinds),
+		Targets: removeDuplicateStr(list.Targets),
+	}
+	f, err := json.Marshal(l)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile("./data/list.json", j, 0755)
+	err = ioutil.WriteFile("./data/list.json", f, 0755)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func fetchXML(after string) {
+func fetchXML(token string) {
 	url := source
-	if after != "" {
-		url += "&start-after=" + after
+	if token != "" {
+		url += "&continuation-token=" + neturl.QueryEscape(token)
 	}
 
 	resp, err := http.Get(url)
@@ -60,18 +98,19 @@ func fetchXML(after string) {
 	}
 	defer resp.Body.Close()
 
-	byteValue, _ := ioutil.ReadAll(resp.Body)
-
-	var list ListBucketResult
-	xml.Unmarshal(byteValue, &list)
-
-	if list.Contents[len(list.Contents)-1].Key == after {
-		return
+	byteValue, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalln(err)
 	}
 
-	for i := 0; i < len(list.Contents); i++ {
-		k := list.Contents[i].Key
-		var key, lib, arch, kind string
+	var listBucket ListBucketResult
+	if err := xml.Unmarshal(byteValue, &listBucket); err != nil {
+		log.Fatalln(err)
+	}
+
+	for _, i := range listBucket.Contents {
+		k := i.Key
+		var key, lib, arch, kind, target string
 		s := strings.Split(k, "/")
 		lib = s[1]
 		switch len(s) {
@@ -84,6 +123,7 @@ func fetchXML(after string) {
 		default:
 			continue
 		}
+		target = strings.Split(key, "_")[1]
 		switch filepath.Ext(key) {
 		case ".o":
 			kind = "ebpf"
@@ -92,16 +132,36 @@ func fetchXML(after string) {
 		default:
 			kind = "unknown"
 		}
-		drivers = append(drivers, Content{
+		list.Libs = append(list.Libs, lib)
+		list.Archs = append(list.Archs, arch)
+		list.Kinds = append(list.Kinds, kind)
+		list.Targets = append(list.Targets, target)
+		files["./data/"+lib+"/"+arch+"/"+target+"/"+kind+".json"] = append(files["./data/"+lib+"/"+arch+"/"+target+"/"+kind+".json"], Content{
 			Lib:          lib,
 			Arch:         arch,
 			Key:          key,
-			SizeString:   humanize.Bytes(uint64(list.Contents[i].Size)),
-			LastModified: list.Contents[i].LastModified,
+			Target:       target,
+			SizeBytes:    i.SizeBytes,
+			Size:         humanize.Bytes(uint64(i.SizeBytes)),
+			LastModified: i.LastModified,
 			Kind:         kind,
 			Download:     download + k,
 		})
 	}
 
-	fetchXML(list.Contents[len(list.Contents)-1].Key)
+	if listBucket.IsTruncated == "true" {
+		fetchXML(listBucket.NextContinuationToken)
+	}
+}
+
+func removeDuplicateStr(strSlice []string) []string {
+	allKeys := make(map[string]bool)
+	list := []string{}
+	for _, item := range strSlice {
+		if _, value := allKeys[item]; !value {
+			allKeys[item] = true
+			list = append(list, item)
+		}
+	}
+	return list
 }
