@@ -120,10 +120,6 @@
                     "pageLength": 100,
                     "data" : data,
                     "order": [[ 2, "asc" ]],
-                    // ajax: {
-                    //     url: "./data/17f5df52a7d9ed6bb12d3b1768460def8439936d/x86_64/amazonlinux2/ebpf.json",
-                    //     // url: "./data/"+lib+"/"+arch+"/"+target+"/"+kind+".json",
-                    // },
                     columns : [
                         { "data" : "lib"},
                         {
@@ -163,7 +159,8 @@
                         { 
                             "data" : "name",
                             render: function (data) {
-                                return '<a href="?search='+data+'"><i class="bi bi-link"></i></a>';
+                                url.searchParams.set('search', data);
+                                return '<a href="?'+url.searchParams.toString()+'"><i class="bi bi-link"></i></a>';
                             }
                         },
                     ]
