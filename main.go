@@ -3,15 +3,15 @@ package main
 import (
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	neturl "net/url"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/dustin/go-humanize"
 )
 
 const source = "https://falco-distribution.s3-eu-west-1.amazonaws.com/?list-type=2&prefix=driver"
@@ -28,6 +28,7 @@ type Content struct {
 	Lib          string `json:"lib"`
 	Arch         string `json:"arch"`
 	Kind         string `json:"kind"`
+	Kernel       string `json:"kernel"`
 	Target       string `json:"target"`
 	Key          string `xml:"Key" json:"name"`
 	Download     string `json:"download"`
@@ -110,7 +111,7 @@ func fetchXML(token string) {
 
 	for _, i := range listBucket.Contents {
 		k := i.Key
-		var key, lib, arch, kind, target string
+		var key, lib, arch, kind, target, kernel string
 		s := strings.Split(k, "/")
 		lib = s[1]
 		switch len(s) {
@@ -124,6 +125,7 @@ func fetchXML(token string) {
 			continue
 		}
 		target = strings.Split(key, "_")[1]
+		kernel = strings.TrimSuffix(strings.TrimSuffix(strings.Split(key, "_")[2], ".o"), ".ko")
 		switch filepath.Ext(key) {
 		case ".o":
 			kind = "ebpf"
@@ -140,9 +142,10 @@ func fetchXML(token string) {
 			Lib:          lib,
 			Arch:         arch,
 			Key:          key,
+			Kernel:       kernel,
 			Target:       target,
 			SizeBytes:    i.SizeBytes,
-			Size:         humanize.Bytes(uint64(i.SizeBytes)),
+			Size:         humaneteBytes(uint64(i.SizeBytes)),
 			LastModified: i.LastModified,
 			Kind:         kind,
 			Download:     download + neturl.QueryEscape(k),
@@ -164,4 +167,20 @@ func removeDuplicateStr(strSlice []string) []string {
 		}
 	}
 	return list
+}
+
+func humaneteBytes(s uint64) string {
+	sizes := []string{"B", "kB", "MB", "GB", "TB", "PB", "EB"}
+	if s < 10 {
+		return fmt.Sprintf("%d B", s)
+	}
+	e := math.Floor(math.Log(float64(s)) / math.Log(1024.0))
+	suffix := sizes[int(e)]
+	val := math.Floor(float64(s)/math.Pow(1024.0, e)*10+0.5) / 10
+	f := "%.0f %s"
+	if val < 10 {
+		f = "%.1f %s"
+	}
+
+	return fmt.Sprintf(f, val, suffix)
 }
