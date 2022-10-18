@@ -44,7 +44,7 @@
         var url = new URL(window.location);
         var lib = url.searchParams.get('lib');
         if (lib == null) {
-            lib = "2.0.0+driver";
+            lib = "3.0.0+driver";
             url.searchParams.set('lib', lib);
         };
         var target = url.searchParams.get('target')
@@ -67,33 +67,19 @@
             search = "";
         };
         window.history.pushState({}, '', url);
-        $.getJSON('./data/list.json', function(data) {
-            Object.entries(data).forEach (([key, value]) => {
-                for (var item of value) {
-                    var searchPrms = new URLSearchParams(window.location.search);
-                    searchPrms.delete('search');
-                    var selected = searchPrms.get(key);
-                    searchPrms.set(key, item);
-                    if (key === "lib") {
-                        var element = document.createElement('option');
-                        element.text = item;
-                        if (selected == item) {
-                            element.selected = item;
-                        }
-                        element.value = "?"+searchPrms.toString();
-                        document.getElementById(key).appendChild(element);
-                    } else {
-                        var element = document.createElement('a');
-                        element.className = "btn btn-outline-primary btn-sm";
-                        if (selected == item) {
-                            element.className = "btn btn-primary btn-sm";
-                        }
-                        element.style = "margin: 5px; padding-top: 8px; padding-bottom: 10px;"
-                        element.text = item;
-                        element.href = "?"+searchPrms.toString();
-                        document.getElementById(key).appendChild(element);
-                    }
+        $.getJSON('./data/index.json', function(data) {
+            Object.entries(data).forEach (([key,value]) => {
+                var searchPrms = new URLSearchParams(window.location.search);
+                searchPrms.delete('search');
+                var selected = searchPrms.get('lib');
+                searchPrms.set('lib', value);
+                var element = document.createElement('option');
+                element.text = value;
+                if (selected == value) {
+                    element.selected = value;
                 }
+                element.value = "?"+searchPrms.toString();
+                document.getElementById('lib').appendChild(element);
             });
         });
     </script>
@@ -104,8 +90,7 @@
     </div>
     <div style="padding-left: 10px;">
         Lib:
-        <select class="form-select w-25" id="lib" onchange="if (this.value) window.location.href=this.value">
-        </select>
+        <select class="form-select w-25" id="lib" onchange="if (this.value) window.location.href=this.value"></select>
     </div>
     <div id="arch" style="padding-left: 10px;">
         Arch:
@@ -113,16 +98,13 @@
     <div id="kind" style="padding-left: 10px;">
         Kind:
     </div>
-    <div id="kernel" style="padding-left: 10px;">
-        Kernel:
-    </div>
     <div id="target" style="padding-left: 10px; padding-bottom: 15px;">
         Target:
     </div>
     <table id="drivers" class="table table-striped table-condensed" style="padding-left: 10px;">
         <thead>
             <tr>
-                <th>Libs</th>
+                <th>Lib</th>
                 <th>Arch</th>
                 <th>Target</th>
                 <th>Kind</th> 
@@ -137,13 +119,58 @@
     </table>
     </body>
     <script>
+        var url = new URL(window.location);
         $(document).ready(function() {
-            $.getJSON('./data/'+lib+'/'+arch+'/'+target+'/'+kind+'.json', function(data) {
+            $.getJSON('./data/'+lib+'.json', function(data) {
+                Object.entries(data['index']).forEach (([key, value]) => {
+                    var searchPrms = new URLSearchParams(window.location.search);
+                    searchPrms.delete('search');
+                    var selected = searchPrms.get(key);
+                    if (key != "lib") {
+                        searchPrms.set(key, 'all');
+                        var element = document.createElement('a');
+                        element.className = "btn btn-outline-primary btn-sm";
+                        if (selected == 'all') {
+                            element.className = "btn btn-primary btn-sm";
+                        }
+                        element.style = "margin: 5px; padding-top: 8px; padding-bottom: 10px;"
+                        element.text = 'ALL';
+                        element.href = "?"+searchPrms.toString();
+                        document.getElementById(key).appendChild(element);
+                    }
+                    for (var item of value) {
+                        searchPrms.set(key, item);
+                        if (key != "lib") {
+                            var element = document.createElement('a');
+                            element.className = "btn btn-outline-primary btn-sm";
+                            if (selected == item) {
+                                element.className = "btn btn-primary btn-sm";
+                            }
+                            element.style = "margin: 5px; padding-top: 8px; padding-bottom: 10px;"
+                            element.text = item;
+                            element.href = "?"+searchPrms.toString();
+                            document.getElementById(key).appendChild(element);
+                        }
+                    }
+                });
+                var drivers = [];
+                data['drivers'].forEach (value => {
+                    if (value.arch != url.searchParams.get('arch') && url.searchParams.get('arch') != 'all') {
+                        return;
+                    }
+                    if (value.kind != url.searchParams.get('kind') && url.searchParams.get('kind') != 'all') {
+                        return;
+                    }
+                    if (value.target != url.searchParams.get('target') && url.searchParams.get('target') != 'all') {
+                        return;
+                    }
+                    drivers.push(value);
+                });
                 $('#drivers').DataTable({
                     "search": {"search": search },
                     "paging": true,
                     "pageLength": 100,
-                    "data" : data,
+                    "data": drivers,
                     "order": [[ 2, "asc" ]],
                     columns : [
                         { "data" : "lib"},
@@ -162,6 +189,7 @@
                         { "data" : "target"},
                         {
                             "data": 'kind',
+                            "search": "ebpf",
                             render: function (data) {
                                 if (data === "ebpf") {
                                     return '<span class="badge ebpf">'+data+'</span>'

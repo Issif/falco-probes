@@ -44,24 +44,30 @@ type List struct {
 	Targets []string `json:"target"`
 }
 
+type JSONFile struct {
+	Index   List      `json:"index"`
+	Drivers []Content `json:"drivers"`
+}
+
 var (
-	list  List
-	files map[string][]Content
+	destFolder string
+	jsonFiles  map[string]JSONFile
 )
 
 func init() {
-	files = make(map[string][]Content)
-	if err := os.RemoveAll("./data"); err != nil {
+	jsonFiles = make(map[string]JSONFile)
+	if len(os.Args) < 2 || os.Args[1] == "" {
+		log.Fatal("Specify the destination folder as argument $1")
+	}
+	destFolder = strings.TrimSuffix(os.Args[1], "/")
+	if err := os.MkdirAll(filepath.Dir(destFolder), 0754); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func main() {
 	fetchXML("")
-	for i, j := range files {
-		if err := os.MkdirAll(filepath.Dir(i), 0754); err != nil {
-			log.Fatal(err)
-		}
+	for i, j := range jsonFiles {
 		f, err := json.Marshal(j)
 		if err != nil {
 			log.Fatal(err)
@@ -71,17 +77,15 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	l := List{
-		Libs:    removeDuplicateStr(list.Libs),
-		Archs:   removeDuplicateStr(list.Archs),
-		Kinds:   removeDuplicateStr(list.Kinds),
-		Targets: removeDuplicateStr(list.Targets),
+	l := []string{}
+	for _, i := range jsonFiles {
+		l = removeDuplicateStr(append(l, i.Index.Libs...))
 	}
 	f, err := json.Marshal(l)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ioutil.WriteFile("./data/list.json", f, 0755)
+	err = ioutil.WriteFile(destFolder+"/index.json", f, 0755)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -111,6 +115,9 @@ func fetchXML(token string) {
 
 	for _, i := range listBucket.Contents {
 		k := i.Key
+		if !strings.HasSuffix(k, ".ko") && !strings.HasSuffix(k, ".o") {
+			continue
+		}
 		var key, lib, arch, kind, target, kernel string
 		s := strings.Split(k, "/")
 		lib = s[1]
@@ -134,11 +141,14 @@ func fetchXML(token string) {
 		default:
 			kind = "unknown"
 		}
-		list.Libs = append(list.Libs, lib)
-		list.Archs = append(list.Archs, arch)
-		list.Kinds = append(list.Kinds, kind)
-		list.Targets = append(list.Targets, target)
-		files["./data/"+lib+"/"+arch+"/"+target+"/"+kind+".json"] = append(files["./data/"+lib+"/"+arch+"/"+target+"/"+kind+".json"], Content{
+
+		jf := jsonFiles[destFolder+"/"+lib+".json"]
+		jf.Index.Libs = removeDuplicateStr(append(jf.Index.Libs, lib))
+		jf.Index.Archs = removeDuplicateStr(append(jf.Index.Archs, arch))
+		jf.Index.Kinds = removeDuplicateStr(append(jf.Index.Kinds, kind))
+		jf.Index.Targets = removeDuplicateStr(append(jf.Index.Targets, target))
+
+		jf.Drivers = append(jf.Drivers, Content{
 			Lib:          lib,
 			Arch:         arch,
 			Key:          key,
@@ -150,6 +160,7 @@ func fetchXML(token string) {
 			Kind:         kind,
 			Download:     download + neturl.QueryEscape(k),
 		})
+		jsonFiles[destFolder+"/"+lib+".json"] = jf
 	}
 
 	if listBucket.IsTruncated == "true" {
